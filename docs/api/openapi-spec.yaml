@@ -1,0 +1,1396 @@
+openapi: 3.0.3
+info:
+  title: Train-My-AI Platform API
+  version: 1.0.0
+  description: |
+    Complete API specification for the Train-My-AI no-code platform.
+    Enables users to upload data, train models (RAG/SFT), and deploy inference endpoints.
+  contact:
+    name: API Support
+    email: support@train-my-ai.com
+
+servers:
+  - url: https://api.train-my-ai.com/v1
+    description: Production
+  - url: https://staging-api.train-my-ai.com/v1
+    description: Staging
+  - url: http://localhost:8000/v1
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication and authorization
+  - name: Workspaces
+    description: Multi-tenant workspace management
+  - name: Datasets
+    description: Data ingestion and management
+  - name: Jobs
+    description: Training, evaluation, and inference jobs
+  - name: Models
+    description: Model artifacts and serving
+  - name: Secrets
+    description: API key and credential management
+  - name: Billing
+    description: Usage tracking and payments
+  - name: GPU Nodes
+    description: BYO GPU agent registration and management
+  - name: Health
+    description: System health and status
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    mTLS:
+      type: mutualTLS
+      description: Mutual TLS for BYO GPU agents
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message, request_id]
+      properties:
+        error:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: "Invalid dataset format"
+        details:
+          type: object
+        request_id:
+          type: string
+          format: uuid
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        storage_used_bytes:
+          type: integer
+          format: int64
+        storage_limit_bytes:
+          type: integer
+          format: int64
+          default: 10737418240  # 10 GB
+        budget_limit_usd:
+          type: number
+          format: float
+        budget_used_usd:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        dataset_type:
+          type: string
+          enum: [RAG, SFT]
+        status:
+          type: string
+          enum: [UPLOADING, PROCESSING, READY, FAILED]
+        size_bytes:
+          type: integer
+          format: int64
+        num_files:
+          type: integer
+        num_chunks:
+          type: integer
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        dataset_id:
+          type: string
+          format: uuid
+        job_type:
+          type: string
+          enum: [INGEST, RAG_TRAIN, SFT_TRAIN, EVAL, INFER]
+        status:
+          type: string
+          enum: [PENDING, QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+        compute_type:
+          type: string
+          enum: [MANAGED_GPU, BYO_GPU]
+        gpu_node_id:
+          type: string
+          format: uuid
+          nullable: true
+        config:
+          type: object
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        logs_url:
+          type: string
+          format: uri
+        error:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Model:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        model_type:
+          type: string
+          enum: [RAG, SFT]
+        base_model:
+          type: string
+          example: "meta-llama/Llama-3-8B"
+        artifacts_uri:
+          type: string
+        mlflow_run_id:
+          type: string
+        endpoint_url:
+          type: string
+          format: uri
+          nullable: true
+        status:
+          type: string
+          enum: [TRAINING, READY, DEPLOYING, DEPLOYED, FAILED]
+        created_at:
+          type: string
+          format: date-time
+
+    Secret:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        provider:
+          type: string
+          enum: [OPENAI, ANTHROPIC, HUGGINGFACE, COHERE]
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    GPUNode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ONLINE, OFFLINE, BUSY, ERROR]
+        gpu_info:
+          type: object
+          properties:
+            count:
+              type: integer
+            model:
+              type: string
+              example: "NVIDIA RTX 4090"
+            vram_total_mb:
+              type: integer
+            vram_free_mb:
+              type: integer
+        last_heartbeat:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    BillingUsage:
+      type: object
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        gpu_seconds_managed:
+          type: integer
+        gpu_seconds_byo:
+          type: integer
+        storage_gb_hours:
+          type: number
+          format: float
+        api_calls:
+          type: integer
+        egress_gb:
+          type: number
+          format: float
+        total_cost_usd:
+          type: number
+          format: float
+
+paths:
+  # ============================================================
+  # AUTH
+  # ============================================================
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+                  workspaces:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and invalidate token
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Logged out successfully
+
+  # ============================================================
+  # WORKSPACES
+  # ============================================================
+  /workspaces:
+    get:
+      tags: [Workspaces]
+      summary: List all workspaces for current user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaces:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+
+    post:
+      tags: [Workspaces]
+      summary: Create new workspace
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                budget_limit_usd:
+                  type: number
+                  format: float
+      responses:
+        '201':
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+
+  /workspaces/{workspace_id}:
+    get:
+      tags: [Workspaces]
+      summary: Get workspace details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Workspace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+
+    patch:
+      tags: [Workspaces]
+      summary: Update workspace settings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                budget_limit_usd:
+                  type: number
+      responses:
+        '200':
+          description: Updated workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+
+  # ============================================================
+  # DATASETS
+  # ============================================================
+  /workspaces/{workspace_id}/datasets:
+    get:
+      tags: [Datasets]
+      summary: List datasets in workspace
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of datasets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datasets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dataset'
+
+    post:
+      tags: [Datasets]
+      summary: Create new dataset (get upload URLs)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, dataset_type, files]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                dataset_type:
+                  type: string
+                  enum: [RAG, SFT]
+                files:
+                  type: array
+                  items:
+                    type: object
+                    required: [filename, size_bytes]
+                    properties:
+                      filename:
+                        type: string
+                      size_bytes:
+                        type: integer
+      responses:
+        '201':
+          description: Dataset created with upload URLs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dataset:
+                    $ref: '#/components/schemas/Dataset'
+                  upload_urls:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        file_id:
+                          type: string
+                          format: uuid
+                        filename:
+                          type: string
+                        upload_url:
+                          type: string
+                          format: uri
+                        expires_at:
+                          type: string
+                          format: date-time
+
+  /workspaces/{workspace_id}/datasets/{dataset_id}:
+    get:
+      tags: [Datasets]
+      summary: Get dataset details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+
+  /workspaces/{workspace_id}/datasets/{dataset_id}/process:
+    post:
+      tags: [Datasets]
+      summary: Start dataset processing (after upload complete)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chunk_size:
+                  type: integer
+                  default: 512
+                chunk_overlap:
+                  type: integer
+                  default: 50
+                enable_pii_redaction:
+                  type: boolean
+                  default: false
+      responses:
+        '202':
+          description: Processing started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+
+  # ============================================================
+  # JOBS
+  # ============================================================
+  /workspaces/{workspace_id}/jobs:
+    get:
+      tags: [Jobs]
+      summary: List jobs in workspace
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+
+    post:
+      tags: [Jobs]
+      summary: Create training/inference job
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [job_type, dataset_id, config]
+              properties:
+                job_type:
+                  type: string
+                  enum: [RAG_TRAIN, SFT_TRAIN, EVAL, INFER]
+                dataset_id:
+                  type: string
+                  format: uuid
+                compute_type:
+                  type: string
+                  enum: [MANAGED_GPU, BYO_GPU]
+                  default: MANAGED_GPU
+                gpu_node_id:
+                  type: string
+                  format: uuid
+                  description: Required if compute_type is BYO_GPU
+                config:
+                  type: object
+                  description: Job-specific config
+                  oneOf:
+                    - $ref: '#/components/schemas/RAGTrainConfig'
+                    - $ref: '#/components/schemas/SFTTrainConfig'
+      responses:
+        '201':
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+
+  /jobs/{job_id}:
+    get:
+      tags: [Jobs]
+      summary: Get job details and status
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+
+  /jobs/{job_id}/cancel:
+    post:
+      tags: [Jobs]
+      summary: Cancel running job
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+
+  /jobs/{job_id}/logs:
+    get:
+      tags: [Jobs]
+      summary: Stream job logs (Server-Sent Events)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Log stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  # ============================================================
+  # MODELS
+  # ============================================================
+  /workspaces/{workspace_id}/models:
+    get:
+      tags: [Models]
+      summary: List trained models
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Model'
+
+  /models/{model_id}:
+    get:
+      tags: [Models]
+      summary: Get model details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Model details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+
+  /models/{model_id}/deploy:
+    post:
+      tags: [Models]
+      summary: Deploy model to inference endpoint
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instance_type:
+                  type: string
+                  default: "gpu-t4-small"
+                min_replicas:
+                  type: integer
+                  default: 1
+                max_replicas:
+                  type: integer
+                  default: 3
+      responses:
+        '202':
+          description: Deployment started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpoint_url:
+                    type: string
+                    format: uri
+
+  /models/{model_id}/infer:
+    post:
+      tags: [Models]
+      summary: Run inference on deployed model
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                max_tokens:
+                  type: integer
+                  default: 256
+                temperature:
+                  type: number
+                  format: float
+                  default: 0.7
+                top_k:
+                  type: integer
+                  default: 5
+                  description: For RAG models, number of chunks to retrieve
+      responses:
+        '200':
+          description: Inference result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        chunk_id:
+                          type: string
+                        content:
+                          type: string
+                        score:
+                          type: number
+                  metadata:
+                    type: object
+                    properties:
+                      latency_ms:
+                        type: integer
+                      tokens_used:
+                        type: integer
+
+  # ============================================================
+  # SECRETS
+  # ============================================================
+  /workspaces/{workspace_id}/secrets:
+    get:
+      tags: [Secrets]
+      summary: List secrets (metadata only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of secrets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secrets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Secret'
+
+    post:
+      tags: [Secrets]
+      summary: Store API key or credential
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, provider, key]
+              properties:
+                name:
+                  type: string
+                provider:
+                  type: string
+                  enum: [OPENAI, ANTHROPIC, HUGGINGFACE, COHERE]
+                key:
+                  type: string
+                  format: password
+      responses:
+        '201':
+          description: Secret stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Secret'
+
+  /secrets/{secret_id}:
+    delete:
+      tags: [Secrets]
+      summary: Delete secret
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: secret_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Secret deleted
+
+  # ============================================================
+  # BILLING
+  # ============================================================
+  /workspaces/{workspace_id}/billing/usage:
+    get:
+      tags: [Billing]
+      summary: Get current billing period usage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Usage data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingUsage'
+
+  /workspaces/{workspace_id}/billing/invoices:
+    get:
+      tags: [Billing]
+      summary: List invoices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoices:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        period_start:
+                          type: string
+                          format: date
+                        period_end:
+                          type: string
+                          format: date
+                        amount_usd:
+                          type: number
+                        status:
+                          type: string
+                          enum: [DRAFT, OPEN, PAID, VOID]
+                        pdf_url:
+                          type: string
+                          format: uri
+
+  # ============================================================
+  # GPU NODES (BYO GPU)
+  # ============================================================
+  /gpu-nodes/register:
+    post:
+      tags: [GPU Nodes]
+      summary: Register new BYO GPU node
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, gpu_info]
+              properties:
+                name:
+                  type: string
+                gpu_info:
+                  type: object
+                  required: [count, model, vram_total_mb]
+                  properties:
+                    count:
+                      type: integer
+                    model:
+                      type: string
+                    vram_total_mb:
+                      type: integer
+      responses:
+        '201':
+          description: Node registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  node:
+                    $ref: '#/components/schemas/GPUNode'
+                  agent_token:
+                    type: string
+                    description: JWT token for agent authentication
+                  mtls_cert:
+                    type: string
+                    description: Client certificate for mTLS
+                  mtls_key:
+                    type: string
+                    format: password
+
+  /gpu-nodes/{node_id}/heartbeat:
+    post:
+      tags: [GPU Nodes]
+      summary: Send heartbeat with GPU status
+      security:
+        - mTLS: []
+      parameters:
+        - name: node_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, gpu_info]
+              properties:
+                status:
+                  type: string
+                  enum: [ONLINE, BUSY, ERROR]
+                gpu_info:
+                  type: object
+                  properties:
+                    vram_free_mb:
+                      type: integer
+                    utilization_percent:
+                      type: integer
+                    temperature_c:
+                      type: integer
+      responses:
+        '200':
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commands:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        command:
+                          type: string
+                          enum: [SHUTDOWN, RESTART, UPDATE]
+
+  /gpu-nodes/{node_id}/jobs/next:
+    get:
+      tags: [GPU Nodes]
+      summary: Poll for next job (agent polling)
+      security:
+        - mTLS: []
+      parameters:
+        - name: node_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job available
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  docker_image:
+                    type: string
+                  config:
+                    type: object
+                  secrets:
+                    type: object
+                    description: Secrets injected as env vars
+        '204':
+          description: No jobs available
+
+  /jobs/{job_id}/status:
+    post:
+      tags: [GPU Nodes]
+      summary: Update job status (from BYO agent)
+      security:
+        - mTLS: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [RUNNING, SUCCEEDED, FAILED]
+                progress:
+                  type: number
+                  format: float
+                error:
+                  type: string
+                metrics:
+                  type: object
+      responses:
+        '200':
+          description: Status updated
+
+  # ============================================================
+  # HEALTH
+  # ============================================================
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness check (DB, Redis, S3)
+      responses:
+        '200':
+          description: Service ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  database:
+                    type: string
+                    enum: [ok, degraded, down]
+                  redis:
+                    type: string
+                    enum: [ok, degraded, down]
+                  s3:
+                    type: string
+                    enum: [ok, degraded, down]
+
+# Additional nested schemas
+components:
+  schemas:
+    RAGTrainConfig:
+      type: object
+      properties:
+        embedding_model:
+          type: string
+          enum: ["openai/text-embedding-3-small", "openai/text-embedding-3-large", "sentence-transformers/all-MiniLM-L6-v2"]
+          default: "openai/text-embedding-3-small"
+        chunk_size:
+          type: integer
+          default: 512
+        top_k:
+          type: integer
+          default: 5
+        reranker:
+          type: string
+          enum: ["none", "cohere", "cross-encoder"]
+          default: "none"
+        eval_queries:
+          type: array
+          items:
+            type: string
+
+    SFTTrainConfig:
+      type: object
+      properties:
+        base_model:
+          type: string
+          example: "meta-llama/Llama-3-8B"
+        lora_r:
+          type: integer
+          default: 16
+        lora_alpha:
+          type: integer
+          default: 32
+        lora_dropout:
+          type: number
+          format: float
+          default: 0.05
+        learning_rate:
+          type: number
+          format: float
+          default: 0.0002
+        num_epochs:
+          type: integer
+          default: 3
+        batch_size:
+          type: integer
+          default: 4
+          description: Auto-scaled to fit GPU VRAM
+        eval_split:
+          type: number
+          format: float
+          default: 0.1
+        use_4bit:
+          type: boolean
+          default: true
