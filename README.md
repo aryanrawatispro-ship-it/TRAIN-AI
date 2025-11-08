@@ -1,17 +1,30 @@
 # Train-My-AI Platform
 
-> No-code AI training platform for RAG and fine-tuning, with BYO GPU support
+> No-code AI training platform with **10+ LLM providers**, RAG, fine-tuning, and BYO GPU support
 
 ## Overview
 
 Train-My-AI is a multi-tenant SaaS platform that enables non-developers to:
+
+### 🤖 **Universal LLM Access** (NEW!)
+- **10+ providers**: OpenAI, Claude, DeepSeek, GLM, Gemini, Groq, Cohere, Mistral, and more
+- **Smart routing**: Auto-select cheapest/fastest/best provider per request
+- **Cost savings**: Use DeepSeek at $0.14/1M tokens (70x cheaper than GPT-4)
+- **Speed**: Groq delivers 750+ tokens/sec for real-time chat
+
+### 🧠 Train Your Own Models
 - Upload data (documents, CSV, JSONL) up to 10 GB per workspace
 - Train AI models via two modes:
   - **RAG** (Retrieval-Augmented Generation): Build Q&A systems with document retrieval
   - **SFT** (Supervised Fine-Tuning): Fine-tune LLMs with LoRA/QLoRA
 - Choose compute: Use our managed GPUs or bring your own hardware
 - Deploy inference endpoints with a simple playground UI
-- Track costs in real-time with budget controls
+
+### 💰 Cost Control
+- Track costs across all providers in real-time
+- Set budget limits per workspace
+- Compare pricing across 40+ models instantly
+- **Example**: Save $5,958/month switching from GPT-4 to DeepSeek
 
 ## Repository Structure
 
@@ -124,6 +137,31 @@ train-my-ai/
 └── README.md
 ```
 
+## ✨ Key Features
+
+### 🌐 Universal LLM Provider Support
+- **10+ Providers**: OpenAI, Anthropic (Claude), DeepSeek, Zhipu AI (GLM), Google Gemini, Groq, Cohere, Mistral, Together AI, Local vLLM
+- **40+ Models**: From GPT-4 to ultra-cheap DeepSeek ($0.14/1M tokens)
+- **Smart Routing**: Auto-select cheapest, fastest, or highest quality provider
+- **Cost Optimization**: Save up to 95% by switching providers
+- **Provider Catalog**: Compare pricing, features, and performance instantly
+
+### 🎯 Training Modes
+- **RAG (Retrieval-Augmented Generation)**: Build document Q&A systems with embeddings
+- **SFT (Supervised Fine-Tuning)**: Fine-tune LLMs with LoRA/QLoRA on custom data
+- **Multi-Provider Embeddings**: OpenAI, Cohere, Voyage, Jina, Google, local models
+
+### 💻 Flexible Compute
+- **Managed GPU**: A10, A100, T4 instances with auto-scaling
+- **BYO GPU**: Bring your own hardware (95% cheaper)
+- **Hybrid**: Mix managed and BYO for cost optimization
+
+### 📊 Cost Intelligence
+- **Real-time tracking**: See costs per provider, model, and job
+- **Budget limits**: Auto-stop jobs when limit reached
+- **Cost comparison**: Compare 40+ models side-by-side
+- **Provider recommendations**: Get suggestions for your use case
+
 ## Quick Start
 
 ### Prerequisites
@@ -218,20 +256,35 @@ make run-sft-demo    # Execute SFT workflow demo
 
 ## Documentation
 
+### 🎯 Quick Start Guides
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/architecture/01-system-architecture.md) | System design, data flows, network topology |
+| [Multi-Provider Guide](docs/features/multi-provider-guide.md) | **10+ LLM providers, cost comparison, smart routing** |
+| [API Spec](docs/api/openapi-spec.yaml) | OpenAPI 3.0 specification for all endpoints |
+| [Getting Started](docs/ux/golden-path-wireframes.md) | User journey with wireframes |
+
+### 🏗️ Architecture
+| Document | Description |
+|----------|-------------|
+| [System Architecture](docs/architecture/01-system-architecture.md) | System design, data flows, network topology |
 | [Components](docs/architecture/02-component-specifications.md) | Component responsibilities & interfaces |
-| [API Spec](docs/api/openapi-spec.yaml) | OpenAPI 3.0 specification |
-| [Database Schema](docs/database/schema.sql) | PostgreSQL DDL with RLS |
+| [Multi-Provider LLMs](docs/architecture/06-multi-provider-llms.md) | **Provider abstraction, smart routing, fallback** |
 | [Job Orchestration](docs/architecture/05-job-orchestration.md) | Queue schemas, state machine, retry logic |
+| [Database Schema](docs/database/schema.sql) | PostgreSQL DDL with RLS |
+
+### 🚀 Deployment & Operations
+| Document | Description |
+|----------|-------------|
 | [Deployment](docs/deployment/helm-chart-outline.md) | Helm chart, K8s manifests, network policies |
 | [GPU Agent](gpu-agent/README.md) | BYO GPU agent installation & usage |
-| [Security](docs/security/threat-model.md) | Threat model, mitigations, compliance |
 | [Observability](docs/observability/monitoring-setup.md) | Metrics, logs, traces, dashboards, alerts |
-| [Pricing](docs/business/pricing-model.md) | Unit economics, billing workflow |
+| [Security](docs/security/threat-model.md) | Threat model, mitigations, compliance |
+
+### 💼 Business
+| Document | Description |
+|----------|-------------|
+| [Pricing Model](docs/business/pricing-model.md) | Unit economics, billing workflow |
 | [MVP Plan](docs/project/mvp-delivery-plan.md) | 3-week delivery plan with tasks |
-| [UX Flow](docs/ux/golden-path-wireframes.md) | User journey with wireframes |
 
 ## Deployment
 
